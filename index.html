@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <title>Timesheet</title>
+</head>
+<body class="bg-gray-800 text-white">
+    <div class="container mx-auto mt-10">
+        <h1 class="text-4xl mb-6">Weekly Timesheet</h1>
+        <form>
+            <table class="min-w-full divide-y divide-gray-200 text-gray-900">
+                <thead class="text-white">
+                    <tr>
+                        <th>Date</th>
+                        <th>Day</th>
+                        <th>Time In</th>
+                        <th>Time Out</th>
+                        <th>Hours Worked</th>
+                    </tr>
+                </thead>
+
+                <tbody id="timesheet-body" class="bg-white divide-y divide-gray-200">
+                    <tr id="row1"></tr>
+                    <tr id="row2"></tr>
+                    <tr id="row3"></tr>
+                    <tr id="row4"></tr>
+                    <tr id="row5"></tr>
+                    <tr id="row6"></tr>
+                    <tr id="row7"></tr>
+                </tbody>
+            </table>
+          
+        </form>
+        <div class="mt-6">
+            <strong>Total Hours Worked for the Week: </strong><span id="total_hours_worked">0</span>
+        </div>
+        <div class="mt-6">
+            <label for="notes" class="font-bold"><strong>Notes:</strong></label>
+            <textarea id="notes" rows="4" class="mt-2 p-2 w-full"></textarea>
+        </div>
+        <button id="save_pdf" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-6">
+            Save as PDF
+        </button>
+    </div>
+
+    <script>
+        // Function to populate rows
+        function populateRow(rowId, index) {
+            const row = document.getElementById(rowId);
+            row.innerHTML = `
+                <td><input type="date" name="date${index}" id="date${index}" class="p-1"></td>
+                <td><input type="text" name="day${index}" id="day${index}" class="p-1"></td>
+                <td><input type="time" name="time_in${index}" id="time_in${index}" class="p-1"></td>
+                <td><input type="time" name="time_out${index}" id="time_out${index}" class="p-1"></td>
+                <td><span id="hours_worked${index}">0</span></td>
+            `;
+        }
+
+        // Populate 7 rows
+        for (let i = 1; i <= 7; i++) {
+            populateRow(`row${i}`, i);
+        }
+
+        // Calculating the day when the date changes
+        document.querySelectorAll('input[type="date"]').forEach(function(input, index) {
+            input.addEventListener('change', function() {
+                const dayInput = document.getElementById('day' + (index + 1));
+                const parts = this.value.split('-');
+                const date = new Date(parts[0], parts[1] - 1, parts[2]);
+                const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                dayInput.value = dayNames[date.getUTCDay()];
+            });
+        });
+
+        // Calculating hours worked
+        function calculateHoursWorked(timeIn, timeOut, index) {
+            if (!timeIn || !timeOut) return;
+            const start = new Date(`1970-01-01T${timeIn}:00`);
+            const end = new Date(`1970-01-01T${timeOut}:00`);
+            const diff = (end - start) / (1000 * 60 * 60);
+            document.getElementById(`hours_worked${index}`).innerText = diff.toFixed(2);
+        }
+
+        function updateTotalHoursWorked() {
+            let totalHours = 0;
+            for (let i = 1; i <= 7; i++) {
+                const hours = parseFloat(document.getElementById(`hours_worked${i}`).innerText);
+                if (!isNaN(hours)) {
+                    totalHours += hours;
+                }
+            }
+            document.getElementById('total_hours_worked').innerText = totalHours.toFixed(2);
+        }
+
+        // Listening for time input changes
+        for (let i = 1; i <= 7; i++) {
+            document.getElementById(`time_in${i}`).addEventListener('input', function() {
+                const timeOut = document.getElementById(`time_out${i}`).value;
+                calculateHoursWorked(this.value, timeOut, i);
+                updateTotalHoursWorked();
+            });
+
+            document.getElementById(`time_out${i}`).addEventListener('input', function() {
+                const timeIn = document.getElementById(`time_in${i}`).value;
+                calculateHoursWorked(timeIn, this.value, i);
+                updateTotalHoursWorked();
+            });
+        }
+
+        // PDF Generation
+        document.getElementById("save_pdf").addEventListener("click", function() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(18);
+            doc.text("Weekly Timesheet", 10, 10);
+
+            doc.setFontSize(12);
+            doc.text("Date", 10, 30);
+            doc.text("Day", 40, 30);
+            doc.text("Time In", 70, 30);
+            doc.text("Time Out", 100, 30);
+            doc.text("Hours Worked", 130, 30);
+
+            for (let i = 1; i <= 7; i++) {
+                let y = 30 + i * 10;
+                doc.text(document.getElementById(`date${i}`).value || "", 10, y);
+                doc.text(document.getElementById(`day${i}`).value || "", 40, y);
+                doc.text(document.getElementById(`time_in${i}`).value || "", 70, y);
+                doc.text(document.getElementById(`time_out${i}`).value || "", 100, y);
+                doc.text(document.getElementById(`hours_worked${i}`).innerText, 130, y);
+            }
+
+            doc.setFontSize(14);
+            doc.text("Total Hours Worked for the Week: " + document.getElementById("total_hours_worked").innerText, 10, 100);
+
+            doc.text("Notes:", 10, 110);
+            doc.text(document.getElementById("notes").value, 10, 120);
+
+            doc.save("timesheet.pdf");
+        });
+    </script>
+</body>
+</html>
